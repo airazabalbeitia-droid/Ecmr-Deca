@@ -530,6 +530,7 @@
     }
   }
 
+  // RENDERIZAR DIRECTORIO DE CLIENTES (CONCATENACIÓN CLÁSICA)
   function renderizarClientesDirectorio() {
     const container = document.getElementById('listClientesDir');
     if (!container) return;
@@ -620,11 +621,11 @@
 
   async function obtenerSiguienteReferencia() {
     const añoActual = new Date().getFullYear();
-    const prefijoBase = `eCMR-${añoActual}-`;
+    const prefijoBase = "eCMR-" + añoActual + "-";
     let maxNum = 0;
 
     portes.forEach(p => {
-      if (p.ref && p.ref.startsWith(prefijoBase)) {
+      if (p.ref && p.ref.indexOf(prefijoBase) === 0) {
         const numPart = parseInt(p.ref.replace(prefijoBase, ''), 10);
         if (!isNaN(numPart) && numPart > maxNum) maxNum = numPart;
       }
@@ -634,7 +635,7 @@
       const { data: files, error } = await supabaseClient.storage.from('decamrs').list('', { limit: 1000, sortBy: { column: 'name', order: 'asc' } });
       if (files && !error) {
         files.forEach(f => {
-          if (f.name && f.name.startsWith(prefijoBase) && f.name.endsWith('.pdf')) {
+          if (f.name && f.name.indexOf(prefijoBase) === 0 && f.name.indexOf('.pdf') !== -1) {
             const numStr = f.name.replace(prefijoBase, '').replace('.pdf', '');
             const numPart = parseInt(numStr, 10);
             if (!isNaN(numPart) && numPart > maxNum) maxNum = numPart;
@@ -646,7 +647,7 @@
     }
 
     const siguienteNum = maxNum + 1;
-    return `${prefijoBase}${String(siguienteNum).padStart(4, '0')}`;
+    return prefijoBase + String(siguienteNum).padStart(4, '0');
   }
 
   function switchAppTab(tab) {
@@ -801,21 +802,21 @@
     canvas.onmousemove = mover;
     canvas.onmouseup = parar;
 
-    canvas.ontouchstart = (e) => { empezar(e); };
-    canvas.ontouchmove = (e) => { mover(e); };
+    canvas.ontouchstart = function(e) { empezar(e); };
+    canvas.ontouchmove = function(e) { mover(e); };
     canvas.ontouchend = parar;
   }
 
   function capturarUbicacionYHora(metaId, ctx, canvas) {
     const ahora = new Date().toLocaleString('es-ES');
-    let textoSello = `Fecha/Hora: ${ahora}`;
+    let textoSello = "Fecha/Hora: " + ahora;
     if (navigator.geolocation) {
       navigator.geolocation.getCurrentPosition(
-        (pos) => { textoSello += ` | GPS: ${pos.coords.latitude.toFixed(5)}, ${pos.coords.longitude.toFixed(5)}`; aplicarSello(metaId, ctx, canvas, textoSello); },
-        () => { textoSello += ` | GPS: No disponible`; aplicarSello(metaId, ctx, canvas, textoSello); }, 
+        function(pos) { textoSello += " | GPS: " + pos.coords.latitude.toFixed(5) + ", " + pos.coords.longitude.toFixed(5); aplicarSello(metaId, ctx, canvas, textoSello); },
+        function() { textoSello += " | GPS: No disponible"; aplicarSello(metaId, ctx, canvas, textoSello); }, 
         { timeout: 10000, enableHighAccuracy: true }
       );
-    } else { textoSello += ` | GPS: No soportado`; aplicarSello(metaId, ctx, canvas, textoSello); }
+    } else { textoSello += " | GPS: No soportado"; aplicarSello(metaId, ctx, canvas, textoSello); }
   }
 
   function aplicarSello(metaId, ctx, canvas, texto) {
@@ -846,7 +847,7 @@
 
     try {
       const ref = document.getElementById('numReferencia').value;
-      const nombreArchivo = `${ref}.pdf`;
+      const nombreArchivo = ref + ".pdf";
       const { data: publicUrlData } = supabaseClient.storage.from('decamrs').getPublicUrl(nombreArchivo);
       urlPdfGlobal = publicUrlData.publicUrl;
 
@@ -867,8 +868,8 @@
       const pObservaciones = getVal('observaciones');
       const pFecha = getVal('fechaCarga');
 
-      const cargadorDatosSign = `${getVal('cargadorFirmaNombre')} ${getVal('cargadorFirmaApellidos')} - DNI: ${getVal('cargadorFirmaDni')}`;
-      const transpDatosSign = `${getVal('transpFirmaNombre')} ${getVal('transpFirmaApellidos')} - DNI: ${getVal('transpFirmaDni')}`;
+      const cargadorDatosSign = getVal('cargadorFirmaNombre') + " " + getVal('cargadorFirmaApellidos') + " - DNI: " + getVal('cargadorFirmaDni');
+      const transpDatosSign = getVal('transpFirmaNombre') + " " + getVal('transpFirmaApellidos') + " - DNI: " + getVal('transpFirmaDni');
 
       const canvasCarg = document.getElementById('canvasCargador');
       const canvasTransp = document.getElementById('canvasTransportista');
@@ -937,11 +938,11 @@
       }
 
       portes.push({
-        ref, fecha: pFecha, cargador: pCargadorNombre, cargadorCif: pCargadorCif, cargadorDir: pCargadorDir,
+        ref: ref, fecha: pFecha, cargador: pCargadorNombre, cargadorCif: pCargadorCif, cargadorDir: pCargadorDir,
         origen: pLugarCarga, destino: pLugarDescarga, transpNombre: pTranspNombre, transpCif: pTranspCif,
         transpDir: pTranspDir, transpMat: pTranspMat, transpRem: pTranspRem, mercancia: pMercancia,
-        precioPorte: pPrecioPorte, observaciones: pObservaciones, cargadorDatosSign, transpDatosSign,
-        imgCargadorData, imgTranspData, urlPdf: urlPdfGlobal, estado: 'transito'
+        precioPorte: pPrecioPorte, observaciones: pObservaciones, cargadorDatosSign: cargadorDatosSign, transpDatosSign: transpDatosSign,
+        imgCargadorData: imgCargadorData, imgTranspData: imgTranspData, urlPdf: urlPdfGlobal, estado: 'transito'
       });
 
       guardarMemoria();
@@ -954,6 +955,7 @@
     }
   }
 
+  // RENDERIZAR LISTAS DE PORTES (CONCATENACIÓN CLÁSICA)
   function renderizarListas() {
     const transitList = document.getElementById('listTransit');
     const doneList = document.getElementById('listDone');
@@ -962,26 +964,63 @@
     transitList.innerHTML = ""; doneList.innerHTML = "";
     let inTransit = 0, isDone = 0;
 
-    portes.forEach((p, index) => {
+    portes.forEach(function(p, index) {
       const card = document.createElement('div');
-      card.className = `card-porte ${p.estado === 'terminado' ? 'done' : ''}`;
-      card.innerHTML = `
-        <div class="card-header">
-          <span class="card-ref">${p.ref}</span>
-          <span class="card-status ${p.estado === 'terminado' ? 'done' : ''}">${p.estado === 'terminado' ? 'ENTREGADO' : 'EN TRÁNSITO'}</span>
-        </div>
-        <div class="card-body">
-          <b>Cargador:</b> ${p.cargador}<br>
-          <b>Origen &rarr; Destino:</b> ${p.origen} &rarr; ${p.destino}<br>
-          <b>Mercancía:</b> ${p.mercancia} ${p.precioPorte && p.precioPorte !== '---' ? `| <b>Precio:</b> \${p.precioPorte}` : ''}
-          ${p.destNombre ? `<br><span style="color:#059669; font-weight:600;">Receptor: \${p.destNombre} ${p.destApellidos \vert{}\vert{} ''} (${p.destDni || 'Sin DNI'})</span>` : ''}
-        </div>
-        <div class="card-actions">
-          <button class="btn-sm" style="background:#15803d; color:white;" type="button" onclick="verQRModalDirecto('${p.urlPdf}', '${p.ref}')">Ver QR Policial</button>
-          <a href="${p.urlPdf}" target="_blank" class="btn-sm" style="background:#0369a1; color:white; text-decoration:none;">Ver PDF</a>
-          ${p.estado === 'transito' ? `<button class="btn-sm" style="background:#2563eb; color:white;" type="button" onclick="abrirFirmaDestino(\${index})">Firmar Entrega</button>` : ''}
-        </div>
-      `;
+      card.className = "card-porte " + (p.estado === 'terminado' ? 'done' : '');
+
+      let htmlBody = "<b>Cargador:</b> " + p.cargador + "<br>" +
+                     "<b>Origen &rarr; Destino:</b> " + p.origen + " &rarr; " + p.destino + "<br>" +
+                     "<b>Mercancía:</b> " + p.mercancia;
+      
+      if (p.precioPorte && p.precioPorte !== '---') {
+        htmlBody += " | <b>Precio:</b> " + p.precioPorte;
+      }
+
+      if (p.destNombre) {
+        htmlBody += "<br><span style='color:#059669; font-weight:600;'>Receptor: " + p.destNombre + " " + (p.destApellidos || '') + " (" + (p.destDni || 'Sin DNI') + ")</span>";
+      }
+
+      const cardActions = document.createElement('div');
+      cardActions.className = "card-actions";
+
+      const btnQr = document.createElement('button');
+      btnQr.className = "btn-sm";
+      btnQr.style.background = "#15803d";
+      btnQr.style.color = "white";
+      btnQr.type = "button";
+      btnQr.textContent = "Ver QR Policial";
+      btnQr.onclick = function() { verQRModalDirecto(p.urlPdf, p.ref); };
+      cardActions.appendChild(btnQr);
+
+      const btnPdf = document.createElement('a');
+      btnPdf.className = "btn-sm";
+      btnPdf.style.background = "#0369a1";
+      btnPdf.style.color = "white";
+      btnPdf.style.textDecoration = "none";
+      btnPdf.href = p.urlPdf;
+      btnPdf.target = "_blank";
+      btnPdf.textContent = "Ver PDF";
+      cardActions.appendChild(btnPdf);
+
+      if (p.estado === 'transito') {
+        const btnFirmar = document.createElement('button');
+        btnFirmar.className = "btn-sm";
+        btnFirmar.style.background = "#2563eb";
+        btnFirmar.style.color = "white";
+        btnFirmar.type = "button";
+        btnFirmar.textContent = "Firmar Entrega";
+        btnFirmar.onclick = function() { abrirFirmaDestino(index); };
+        cardActions.appendChild(btnFirmar);
+      }
+
+      card.innerHTML = 
+        '<div class="card-header">' +
+          '<span class="card-ref">' + p.ref + '</span>' +
+          '<span class="card-status ' + (p.estado === 'terminado' ? 'done' : '') + '">' + (p.estado === 'terminado' ? 'ENTREGADO' : 'EN TRÁNSITO') + '</span>' +
+        '</div>' +
+        '<div class="card-body">' + htmlBody + '</div>';
+      
+      card.appendChild(cardActions);
 
       if (p.estado === 'transito') { transitList.appendChild(card); inTransit++; }
       else { doneList.appendChild(card); isDone++; }
@@ -1081,7 +1120,7 @@
       setTxt('pObservaciones', p.observaciones || '---');
       setTxt('pSignCargadorDatos', p.cargadorDatosSign || '---');
       setTxt('pSignTranspDatos', p.transpDatosSign || '---');
-      setTxt('pSignDestDatos', p.destNombre ? `${p.destNombre} ${p.destApellidos || ''} - DNI: ${p.destDni || '---'}` : "Entregado en destino");
+      setTxt('pSignDestDatos', p.destNombre ? (p.destNombre + " " + (p.destApellidos || '') + " - DNI: " + (p.destDni || '---')) : "Entregado en destino");
 
       const imgCargEl = document.getElementById('pImgCargador');
       if (imgCargEl) imgCargEl.style.display = p.imgCargadorData ? (imgCargEl.src = p.imgCargadorData, "block") : "none";
@@ -1092,7 +1131,7 @@
       const imgDestEl = document.getElementById('pImgDest');
       if (imgDestEl) imgDestEl.style.display = p.imgDestinoData ? (imgDestEl.src = p.imgDestinoData, "block") : "none";
 
-      const nombreArchivo = `${p.ref}.pdf`;
+      const nombreArchivo = p.ref + ".pdf";
       const qrContainer = document.getElementById('qrcodePdf');
       if (qrContainer) {
         qrContainer.innerHTML = "";
