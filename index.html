@@ -10,6 +10,8 @@
   <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
   <!-- Librería para generar códigos QR -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+  <!-- Librería JSZip para comprimir los PDFs del mes -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
   <style>
     * { box-sizing: border-box; font-family: system-ui, -apple-system, sans-serif; }
     body { background: #f0f4f8; margin: 0; padding: 12px; color: #1a202c; }
@@ -33,26 +35,34 @@
     .section-box { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 14px; margin-bottom: 16px; }
     .section-title { font-weight: 700; color: #1e3a8a; font-size: 0.95rem; margin-bottom: 10px; border-bottom: 1px solid #cbd5e1; padding-bottom: 4px; }
 
-    .header-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; background: #eff6ff; padding: 12px; border-radius: 8px; margin-bottom: 16px; border: 1px solid #bfdbfe; }
+    .header-grid { display: grid; grid-template-columns: 1.1fr 0.9fr; gap: 12px; background: #eff6ff; padding: 12px; border-radius: 8px; margin-bottom: 16px; border: 1px solid #bfdbfe; align-items: center; }
     .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
     .grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; }
     .field-group { margin-bottom: 12px; }
     label { font-weight: 600; display: block; margin-bottom: 4px; font-size: 0.88rem; color: #334155; }
     input, select, textarea { width: 100%; padding: 10px; border: 1px solid #cbd5e1; border-radius: 6px; font-size: 0.95rem; }
     
+    #numReferencia { font-size: 1rem; letter-spacing: 0.5px; background: #ffffff; }
+
     .remember-me { display: flex; align-items: center; gap: 8px; font-size: 0.85rem; color: #475569; margin-bottom: 14px; cursor: pointer; }
     .remember-me input { width: auto; cursor: pointer; }
 
-    /* TARJETAS DE PORTES Y CLIENTES */
-    .card-porte { background: #ffffff; border: 1px solid #cbd5e1; border-left: 5px solid #2563eb; border-radius: 8px; padding: 14px; margin-bottom: 12px; box-shadow: 0 2px 5px rgba(0,0,0,0.05); }
+    /* ESTILO CARPETAS / ARCHIVADOR DE TERMINADOS */
+    .client-folder { background: #ffffff; border: 2px solid #cbd5e1; border-radius: 10px; margin-bottom: 16px; box-shadow: 0 2px 6px rgba(0,0,0,0.04); overflow: hidden; }
+    .client-folder-header { background: #1e3a8a; color: white; padding: 12px 16px; font-size: 1.05rem; font-weight: bold; display: flex; justify-content: space-between; align-items: center; }
+    
+    .month-subfolder { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; margin: 12px; padding: 12px; }
+    .month-subfolder-header { display: flex; justify-content: space-between; align-items: center; background: #e2e8f0; padding: 8px 12px; border-radius: 6px; font-weight: bold; color: #0f172a; font-size: 0.9rem; flex-wrap: wrap; gap: 8px; }
+
+    .card-porte { background: #ffffff; border: 1px solid #cbd5e1; border-left: 5px solid #2563eb; border-radius: 8px; padding: 12px; margin-top: 10px; box-shadow: 0 1px 3px rgba(0,0,0,0.03); }
     .card-porte.done { border-left-color: #10b981; }
-    .card-header { display: flex; justify-content: space-between; align-items: center; font-weight: bold; margin-bottom: 8px; }
-    .card-ref { color: #1e3a8a; font-size: 1.05rem; }
-    .card-status { font-size: 0.75rem; padding: 3px 8px; border-radius: 12px; background: #dbeafe; color: #1e40af; }
+    .card-header { display: flex; justify-content: space-between; align-items: center; font-weight: bold; margin-bottom: 6px; }
+    .card-ref { color: #1e3a8a; font-size: 0.98rem; }
+    .card-status { font-size: 0.72rem; padding: 2px 6px; border-radius: 10px; background: #dbeafe; color: #1e40af; }
     .card-status.done { background: #d1fae5; color: #065f46; }
-    .card-body { font-size: 0.88rem; line-height: 1.5; color: #475569; }
-    .card-actions { display: flex; gap: 8px; margin-top: 10px; flex-wrap: wrap; }
-    .btn-sm { padding: 6px 10px; font-size: 0.8rem; border-radius: 4px; border: none; cursor: pointer; font-weight: 600; }
+    .card-body { font-size: 0.85rem; line-height: 1.4; color: #475569; }
+    .card-actions { display: flex; gap: 6px; margin-top: 8px; flex-wrap: wrap; }
+    .btn-sm { padding: 5px 8px; font-size: 0.75rem; border-radius: 4px; border: none; cursor: pointer; font-weight: 600; }
 
     /* FIRMAS Y ARCHIVOS */
     .file-input { font-size: 0.85rem; background: #fff; padding: 6px; }
@@ -65,19 +75,20 @@
     .btn-action:hover { background: #1d4ed8; }
     .btn-logout { background: #ef4444; color: white; border: none; padding: 6px 12px; border-radius: 4px; cursor: pointer; float: right; font-size: 0.8rem; }
 
-    /* MODAL QR POLICIAL */
-    .modal-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); display: flex; justify-content: center; align-items: center; z-index: 9999; }
-    .modal-content { background: white; padding: 24px; border-radius: 12px; text-align: center; max-width: 360px; width: 90%; }
-    .modal-content #qrInspectBox { display: flex; justify-content: center; margin: 15px 0; }
+    /* MODAL QR POLICIAL ADAPTABLE */
+    .modal-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); display: flex; justify-content: center; align-items: center; z-index: 9999; padding: 15px; }
+    .modal-content { background: white; padding: 20px; border-radius: 12px; text-align: center; max-width: 340px; width: 100%; }
+    .modal-content #qrInspectBox { display: flex; justify-content: center; align-items: center; margin: 15px auto; width: 200px; height: 200px; max-width: 100%; }
+    .modal-content #qrInspectBox canvas, .modal-content #qrInspectBox img { max-width: 100% !important; height: auto !important; }
 
-    /* PLANTILLA PDF OCULTA */
-    #pdfTemplate { font-family: Arial, sans-serif; padding: 20px; color: #000; background: #fff; width: 100%; min-height: 297mm; box-sizing: border-box; }
-    .pdf-header { display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #1e3a8a; padding-bottom: 10px; margin-bottom: 15px; }
-    .pdf-title { font-size: 18px; font-weight: bold; color: #1e3a8a; }
-    .pdf-box { border: 1px solid #000; padding: 8px; margin-bottom: 10px; font-size: 11px; min-height: 40px; }
-    .pdf-box-title { font-weight: bold; background: #f0f0f0; padding: 3px; margin: -8px -8px 6px -8px; border-bottom: 1px solid #000; }
-    .pdf-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
-    .pdf-img { max-width: 150px; max-height: 100px; border: 1px solid #ccc; margin-top: 5px; }
+    /* PLANTILLA PDF OPTIMIZADA */
+    #pdfTemplate { font-family: Arial, sans-serif; padding: 10px 15px; color: #000; background: #fff; width: 100%; box-sizing: border-box; }
+    .pdf-header { display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #1e3a8a; padding-bottom: 6px; margin-bottom: 8px; }
+    .pdf-title { font-size: 16px; font-weight: bold; color: #1e3a8a; }
+    .pdf-box { border: 1px solid #000; padding: 6px 8px; margin-bottom: 6px; font-size: 10.5px; }
+    .pdf-box-title { font-weight: bold; background: #f0f0f0; padding: 2px 4px; margin: -6px -8px 4px -8px; border-bottom: 1px solid #000; font-size: 10px; }
+    .pdf-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+    .pdf-img { max-width: 120px; max-height: 70px; border: 1px solid #ccc; margin-top: 3px; }
   </style>
 </head>
 <body>
@@ -112,7 +123,7 @@
   <form id="formRegister" class="hidden" onsubmit="handleRegister(event)">
     <div class="field-group">
       <label for="regNombre">Nombre / Razón Social</label>
-      <input type="text" id="regNombre" required placeholder="Ej. Transportes Irazabalbeitia">
+      <input type="text" id="regNombre" required placeholder="Ej. Transportes Propios S.L.">
     </div>
     <div class="field-group">
       <label for="regCif">DNI / CIF</label>
@@ -120,7 +131,7 @@
     </div>
     <div class="field-group">
       <label for="regDireccion">Dirección Fiscal</label>
-      <input type="text" id="regDireccion" placeholder="Ej. Barrio Olabarrieta 12, Bergara">
+      <input type="text" id="regDireccion" placeholder="Ej. Calle Principal 1, Localidad">
     </div>
     <div class="field-group">
       <label for="regEmail">Correo Electrónico</label>
@@ -153,7 +164,7 @@
     <div class="header-grid">
       <div>
         <label>Ref. Expedición:</label>
-        <input type="text" id="numReferencia" readonly style="font-weight: bold; color: #1e3a8a;" placeholder="Generando número...">
+        <input type="text" id="numReferencia" readonly style="font-weight: bold; color: #1e3a8a;" placeholder="Calculando...">
       </div>
       <div>
         <label>Fecha de Carga:</label>
@@ -167,7 +178,7 @@
       <div class="grid-2">
         <div class="field-group">
           <label>Razón Social / Nombre:</label>
-          <input type="text" id="cargadorNombre" list="listCargadoresNombre" placeholder="Ej. ESPYTES S.L." oninput="autocompletarCargador('nombre')">
+          <input type="text" id="cargadorNombre" list="listCargadoresNombre" placeholder="Introducir nombre de empresa cliente..." oninput="autocompletarCargador('nombre')">
           <datalist id="listCargadoresNombre"></datalist>
         </div>
         <div class="field-group">
@@ -178,7 +189,7 @@
       </div>
       <div class="field-group">
         <label>Dirección Completa:</label>
-        <input type="text" id="cargadorDireccion" placeholder="Polígono Industrial, C/ Principal 5, Elgeta">
+        <input type="text" id="cargadorDireccion" placeholder="Dirección del cargador o cliente...">
       </div>
     </div>
 
@@ -186,11 +197,13 @@
     <div class="grid-2">
       <div class="field-group">
         <label>2. Lugar de Carga (Origen):</label>
-        <input type="text" id="lugarCarga" placeholder="Ej. ESPYTES - Elgeta">
+        <input type="text" id="lugarCarga" list="listOrigenes" placeholder="Lugar de recogida...">
+        <datalist id="listOrigenes"></datalist>
       </div>
       <div class="field-group">
         <label>3. Lugar de Descarga (Destino):</label>
-        <input type="text" id="lugarDescarga" placeholder="Ej. Plaiber - Bergara">
+        <input type="text" id="lugarDescarga" list="listDestinos" placeholder="Lugar de entrega...">
+        <datalist id="listDestinos"></datalist>
       </div>
     </div>
 
@@ -200,25 +213,30 @@
       <div class="grid-2">
         <div class="field-group">
           <label>Razón Social / Nombre:</label>
-          <input type="text" id="transpNombre" placeholder="Razón social transportista">
+          <input type="text" id="transpNombre" list="listTranspNombre" placeholder="Tu empresa o autónomo..." oninput="autocompletarTransportista('nombre')">
+          <datalist id="listTranspNombre"></datalist>
         </div>
         <div class="field-group">
           <label>CIF / DNI:</label>
-          <input type="text" id="transpCif" placeholder="CIF / DNI transportista">
+          <input type="text" id="transpCif" list="listTranspCif" placeholder="Tu CIF / DNI..." oninput="autocompletarTransportista('cif')">
+          <datalist id="listTranspCif"></datalist>
         </div>
       </div>
       <div class="field-group">
         <label>Dirección Completa:</label>
-        <input type="text" id="transpDireccion" placeholder="Dirección transportista">
+        <input type="text" id="transpDireccion" list="listTranspDir" placeholder="Dirección fiscal o base...">
+        <datalist id="listTranspDir"></datalist>
       </div>
       <div class="grid-2">
         <div class="field-group">
           <label>Matrícula Camión / Tractor:</label>
-          <input type="text" id="transpMatricula" placeholder="1234-BBB">
+          <input type="text" id="transpMatricula" list="listMatriculas" placeholder="0000-BBB">
+          <datalist id="listMatriculas"></datalist>
         </div>
         <div class="field-group">
           <label>Matrícula Remolque / Semirremolque:</label>
-          <input type="text" id="transpRemolque" placeholder="R-1234-BBB (Opcional)">
+          <input type="text" id="transpRemolque" list="listRemolques" placeholder="R-0000-BBB (Opcional)">
+          <datalist id="listRemolques"></datalist>
         </div>
       </div>
     </div>
@@ -229,7 +247,8 @@
       <div class="grid-2">
         <div class="field-group">
           <label>Descripción de la Mercancía:</label>
-          <input type="text" id="mercancia" placeholder="Ej: 1 cont. 400kg / Paletas de tornillería">
+          <input type="text" id="mercancia" list="listMercancias" placeholder="Ej: Paletas, peso, bultos...">
+          <datalist id="listMercancias"></datalist>
         </div>
         <div class="field-group">
           <label>Precio del Porte / Porte (€) (Opcional):</label>
@@ -247,7 +266,7 @@
       <div class="section-title">6. Reservas u Observaciones</div>
       <div class="field-group">
         <label>Observaciones / Incidencias:</label>
-        <textarea id="observaciones" rows="2" placeholder="Ej: Embalaje dañado en origen, palé remontado..."></textarea>
+        <textarea id="observaciones" rows="2" placeholder="Incidencias, reservas, etc..."></textarea>
       </div>
       <div class="field-group">
         <label>Fotografía de Reservas / Incidencias (Opcional):</label>
@@ -263,9 +282,11 @@
       <div style="margin-bottom: 16px;">
         <label style="color: #1e3a8a;">Firma del Cargador / Expedidor:</label>
         <div class="grid-3">
-          <input type="text" id="cargadorFirmaNombre" placeholder="Nombre">
+          <input type="text" id="cargadorFirmaNombre" list="listFirmantesCargadorNombre" placeholder="Nombre">
+          <datalist id="listFirmantesCargadorNombre"></datalist>
           <input type="text" id="cargadorFirmaApellidos" placeholder="Apellidos">
-          <input type="text" id="cargadorFirmaDni" placeholder="DNI / NIF">
+          <input type="text" id="cargadorFirmaDni" list="listFirmantesCargadorDni" placeholder="DNI / NIF">
+          <datalist id="listFirmantesCargadorDni"></datalist>
         </div>
         <div class="signature-container">
           <canvas id="canvasCargador"></canvas>
@@ -278,9 +299,11 @@
       <div>
         <label style="color: #1e3a8a;">Firma del Transportista:</label>
         <div class="grid-3">
-          <input type="text" id="transpFirmaNombre" placeholder="Nombre">
+          <input type="text" id="transpFirmaNombre" list="listFirmantesTranspNombre" placeholder="Nombre">
+          <datalist id="listFirmantesTranspNombre"></datalist>
           <input type="text" id="transpFirmaApellidos" placeholder="Apellidos">
-          <input type="text" id="transpFirmaDni" placeholder="DNI / NIF">
+          <input type="text" id="transpFirmaDni" list="listFirmantesTranspDni" placeholder="DNI / NIF">
+          <datalist id="listFirmantesTranspDni"></datalist>
         </div>
         <div class="signature-container">
           <canvas id="canvasTransportista"></canvas>
@@ -298,7 +321,7 @@
     <div id="listTransit"></div>
   </div>
 
-  <!-- SECCIÓN 3: PORTES TERMINADOS -->
+  <!-- SECCIÓN 3: PORTES TERMINADOS (ARCHIVADOR DE CARPETAS POR CLIENTE Y MESES) -->
   <div id="secTerminados" class="hidden">
     <div id="listDone"></div>
   </div>
@@ -310,16 +333,16 @@
       <div class="grid-2">
         <div class="field-group">
           <label>Nombre / Razón Social:</label>
-          <input type="text" id="cliNombre" placeholder="Ej. Tornillería Deba S.L.">
+          <input type="text" id="cliNombre" placeholder="Ej. Empresa Cliente S.L.">
         </div>
         <div class="field-group">
           <label>CIF / DNI:</label>
-          <input type="text" id="cliCif" placeholder="B20123456">
+          <input type="text" id="cliCif" placeholder="B00000000">
         </div>
       </div>
       <div class="field-group">
         <label>Dirección Completa:</label>
-        <input type="text" id="cliDireccion" placeholder="Pol. Ind. Deba, Calle B 4, Deba">
+        <input type="text" id="cliDireccion" placeholder="Dirección del cliente...">
       </div>
       <button class="btn-action" style="background: #059669;" type="button" onclick="guardarClienteManual()">Guardar Cliente</button>
     </div>
@@ -370,7 +393,7 @@
     <div class="pdf-header">
       <div>
         <div class="pdf-title">CARTA DE PORTE ELECTRÓNICA (e-CMR / DeCA)</div>
-        <div style="font-size: 11px; color: #555;">Documento Digital de Control de Transporte</div>
+        <div style="font-size: 10px; color: #555;">Documento Digital de Control de Transporte</div>
       </div>
       <div id="qrcodePdf"></div>
     </div>
@@ -430,16 +453,16 @@
       <div class="pdf-grid">
         <div>
           <b>Cargador:</b> <span id="pSignCargadorDatos"></span><br>
-          <img id="pImgCargador" style="max-width: 100%; height: 60px; border: 1px solid #ddd; margin-top: 4px; display: none;">
+          <img id="pImgCargador" style="max-width: 100%; height: 45px; border: 1px solid #ddd; margin-top: 2px; display: none;">
         </div>
         <div>
           <b>Transportista:</b> <span id="pSignTranspDatos"></span><br>
-          <img id="pImgTransp" style="max-width: 100%; height: 60px; border: 1px solid #ddd; margin-top: 4px; display: none;">
+          <img id="pImgTransp" style="max-width: 100%; height: 45px; border: 1px solid #ddd; margin-top: 2px; display: none;">
         </div>
       </div>
-      <div style="margin-top: 8px;">
-        <b>Destinatario:</b> <span id="pSignDestDatos"></span><br>
-        <img id="pImgDest" style="max-width: 100%; height: 60px; border: 1px solid #ddd; margin-top: 4px; display: none;">
+      <div style="margin-top: 6px; border-top: 1px dashed #ccc; padding-top: 4px;">
+        <b>Destinatario (Recepción):</b> <span id="pSignDestDatos"></span><br>
+        <img id="pImgDest" style="max-width: 100%; height: 45px; border: 1px solid #ddd; margin-top: 2px; display: none;">
       </div>
     </div>
   </div>
@@ -455,56 +478,336 @@
   let cargadoresGuardados = [];
   let porteEnEdicionIndex = null;
   let canvasEstadoFirma = {};
+  let usuarioActualId = null;
+
+  function limpiarReferencia(refStr) {
+    if (!refStr) return "";
+    return refStr.replace(/eCMR-/gi, '').replace(/ecmr-/gi, '').trim();
+  }
 
   window.addEventListener('DOMContentLoaded', () => {
     try {
       const savedEmail = localStorage.getItem('decamrs_saved_email');
       const savedPass = localStorage.getItem('decamrs_saved_pass');
       if (savedEmail && savedPass) {
-        const elEmail = document.getElementById('loginEmail');
-        const elPass = document.getElementById('loginPassword');
-        const elRem = document.getElementById('rememberCredentials');
-        if (elEmail) elEmail.value = savedEmail;
-        if (elPass) elPass.value = savedPass;
-        if (elRem) elRem.checked = true;
+        document.getElementById('loginEmail').value = savedEmail;
+        document.getElementById('loginPassword').value = savedPass;
+        document.getElementById('rememberCredentials').checked = true;
       }
     } catch (e) {
-      console.warn("Error leyendo localStorage:", e);
+      console.warn("Error leyendo credenciales:", e);
     }
   });
 
-  function cargarMemoria() {
-    const dataPortes = localStorage.getItem('decamrs_portes');
-    portes = dataPortes ? JSON.parse(dataPortes) : [];
+  async function cargarMemoria() {
+    if (!usuarioActualId) return;
+    try {
+      const { data: dataPortes, error: errP } = await supabaseClient
+        .from('portes')
+        .select('*')
+        .eq('user_id', usuarioActualId);
+      
+      if (!errP && dataPortes) {
+        portes = dataPortes.map(r => {
+          let p = r.payload;
+          if (p.ref) p.ref = limpiarReferencia(p.ref);
+          return p;
+        });
+      } else {
+        portes = [];
+      }
 
-    const dataCargadores = localStorage.getItem('decamrs_cargadores');
-    cargadoresGuardados = dataCargadores ? JSON.parse(dataCargadores) : [];
+      const { data: dataCli, error: errC } = await supabaseClient
+        .from('cargadores')
+        .select('*')
+        .eq('user_id', usuarioActualId);
+
+      if (!errC && dataCli) {
+        cargadoresGuardados = dataCli.map(r => r.payload);
+      } else {
+        cargadoresGuardados = [];
+      }
+    } catch (e) {
+      console.warn("Error al cargar de Supabase:", e);
+      portes = [];
+      cargadoresGuardados = [];
+    }
 
     renderizarListas();
     renderizarClientesDirectorio();
     actualizarDesplegablesCargadores();
+    actualizarAutocompletadoCampos();
   }
 
-  function guardarMemoria() {
-    localStorage.setItem('decamrs_portes', JSON.stringify(portes));
-    localStorage.setItem('decamrs_cargadores', JSON.stringify(cargadoresGuardados));
+  async function guardarMemoria() {
     renderizarListas();
     renderizarClientesDirectorio();
     actualizarDesplegablesCargadores();
+    actualizarAutocompletadoCampos();
+
+    if (!usuarioActualId) return;
+
+    try {
+      for (const c of cargadoresGuardados) {
+        await supabaseClient.from('cargadores').upsert({
+          user_id: usuarioActualId,
+          cif: c.cif || c.nombre,
+          payload: c
+        }, { onConflict: 'user_id,cif' });
+      }
+    } catch (e) {
+      console.warn("Error al sincronizar cargadores en Supabase:", e);
+    }
   }
 
-  function guardarCargadorSiEsNuevo(nombre, cif, direccion) {
+  async function eliminarPorte(refBuscada) {
+    if (!confirm("¿Deseas eliminar este porte permanentemente de la nube y de la base de datos?")) return;
+
+    refBuscada = limpiarReferencia(refBuscada);
+    const nombreArchivoPdf = refBuscada + ".pdf";
+
+    if (usuarioActualId && refBuscada) {
+      try {
+        let { error: err1 } = await supabaseClient
+          .from('portes')
+          .delete()
+          .eq('user_id', usuarioActualId)
+          .eq('ref', refBuscada);
+
+        let { error: err2 } = await supabaseClient
+          .from('portes')
+          .delete()
+          .eq('user_id', usuarioActualId)
+          .filter('payload->>ref', 'eq', refBuscada);
+
+        await supabaseClient.storage.from('decamrs').remove([nombreArchivoPdf]);
+
+        if (err1 && err2) {
+          alert("Error de Supabase al borrar: " + (err1?.message || err2?.message));
+          return;
+        }
+      } catch (err) {
+        alert("Error de conexión al eliminar: " + err.message);
+        return;
+      }
+    }
+
+    portes = portes.filter(p => limpiarReferencia(p.ref) !== refBuscada);
+    renderizarListas();
+    actualizarAutocompletadoCampos();
+    alert("Porte eliminado permanentemente de la nube.");
+  }
+
+  async function eliminarMesCliente(cargadorNombre, anioMesKey) {
+    if (!confirm(`¿Estás seguro de borrar todos los portes terminados de "${cargadorNombre}" del periodo ${anioMesKey}?`)) return;
+
+    const refsAEliminar = [];
+    const archivosPdfAEliminar = [];
+
+    portes.forEach(p => {
+      if (p.estado === 'terminado') {
+        const carg = (p.cargador || 'Sin Cliente').trim();
+        const fechaStr = p.fecha || new Date().toISOString().split('T')[0];
+        const anioMes = fechaStr.substring(0, 7);
+        if (carg === cargadorNombre && anioMes === anioMesKey) {
+          if (p.ref) {
+            const refLimpia = limpiarReferencia(p.ref);
+            refsAEliminar.push(refLimpia);
+            archivosPdfAEliminar.push(refLimpia + ".pdf");
+          }
+        }
+      }
+    });
+
+    if (usuarioActualId && refsAEliminar.length > 0) {
+      try {
+        for (const ref of refsAEliminar) {
+          await supabaseClient
+            .from('portes')
+            .delete()
+            .eq('user_id', usuarioActualId)
+            .eq('ref', ref);
+
+          await supabaseClient
+            .from('portes')
+            .delete()
+            .eq('user_id', usuarioActualId)
+            .filter('payload->>ref', 'eq', ref);
+        }
+
+        if (archivosPdfAEliminar.length > 0) {
+          await supabaseClient.storage.from('decamrs').remove(archivosPdfAEliminar);
+        }
+      } catch (err) {
+        alert("Error al borrar periodo: " + err.message);
+        return;
+      }
+    }
+
+    portes = portes.filter(p => {
+      if (p.estado === 'terminado') {
+        const carg = (p.cargador || 'Sin Cliente').trim();
+        const fechaStr = p.fecha || new Date().toISOString().split('T')[0];
+        const anioMes = fechaStr.substring(0, 7);
+        if (carg === cargadorNombre && anioMes === anioMesKey) {
+          return false;
+        }
+      }
+      return true;
+    });
+
+    renderizarListas();
+    actualizarAutocompletadoCampos();
+    alert("Periodo eliminado correctamente de la nube.");
+  }
+
+  async function descargarMesZip(cargadorNombre, anioMesKey, listaPortesMes) {
+    if (!window.JSZip) {
+      alert("La librería ZIP se está cargando. Inténtalo de nuevo en un instante.");
+      return;
+    }
+
+    const zip = new JSZip();
+    const carpetaCliente = zip.folder(cargadorNombre.replace(/[\/\\?%*:|"<>]/g, '_') + "_" + anioMesKey);
+
+    const btnCargando = event.target;
+    const textoOriginal = btnCargando.innerText;
+    btnCargando.disabled = true;
+    btnCargando.innerText = "📥 Generando ZIP...";
+
+    try {
+      let ficherosAñadidos = 0;
+      for (const item of listaPortesMes) {
+        const p = item.porte;
+        if (p.urlPdf) {
+          try {
+            const response = await fetch(p.urlPdf);
+            if (response.ok) {
+              const blobPdf = await response.blob();
+              carpetaCliente.file(limpiarReferencia(p.ref) + ".pdf", blobPdf);
+              ficherosAñadidos++;
+            }
+          } catch (err) {
+            console.warn("No se pudo descargar el PDF:", p.ref, err);
+          }
+        }
+      }
+
+      if (ficherosAñadidos === 0) {
+        alert("No se han podido descargar los PDFs de este mes.");
+        btnCargando.disabled = false;
+        btnCargando.innerText = textoOriginal;
+        return;
+      }
+
+      const contenidoZip = await zip.generateAsync({ type: "blob" });
+      const urlZip = URL.createObjectURL(contenidoZip);
+      
+      const enlaceDescarga = document.createElement('a');
+      enlaceDescarga.href = urlZip;
+      enlaceDescarga.download = `Portes_${cargadorNombre.replace(/[\/\\?%*:|"<>]/g, '_')}_${anioMesKey}.zip`;
+      document.body.appendChild(enlaceDescarga);
+      enlaceDescarga.click();
+      document.body.removeChild(enlaceDescarga);
+
+      setTimeout(() => URL.revokeObjectURL(urlZip), 5000);
+      alert(`¡Archivo ZIP generado con éxito (${ficherosAñadidos} albaranes/portes)!`);
+    } catch (e) {
+      alert("Error al empaquetar los PDFs: " + e.message);
+    } finally {
+      btnCargando.disabled = false;
+      btnCargando.innerText = textoOriginal;
+    }
+  }
+
+  function actualizarAutocompletadoCampos() {
+    const origenes = new Set();
+    const destinos = new Set();
+    const matriculas = new Set();
+    const remolques = new Set();
+    const mercancias = new Set();
+    const cNombres = new Set();
+    const cDnis = new Set();
+    const tNombres = new Set();
+    const tDnis = new Set();
+    const transpNombres = new Set();
+    const transpCifs = new Set();
+    const transpDirs = new Set();
+
+    portes.forEach(p => {
+      if (p.origen && p.origen !== '---') origenes.add(p.origen);
+      if (p.destino && p.destino !== '---') destinos.add(p.destino);
+      if (p.transpMat && p.transpMat !== '---') matriculas.add(p.transpMat);
+      if (p.transpRem && p.transpRem !== '---') remolques.add(p.transpRem);
+      if (p.mercancia && p.mercancia !== '---') mercancias.add(p.mercancia);
+      if (p.transpNombre && p.transpNombre !== '---') transpNombres.add(p.transpNombre);
+      if (p.transpCif && p.transpCif !== '---') transpCifs.add(p.transpCif);
+      if (p.transpDir && p.transpDir !== '---') transpDirs.add(p.transpDir);
+      
+      if (p.cargadorFirmaNombre) cNombres.add(p.cargadorFirmaNombre);
+      if (p.cargadorFirmaDni) cDnis.add(p.cargadorFirmaDni);
+      if (p.transpFirmaNombre) tNombres.add(p.transpFirmaNombre);
+      if (p.transpFirmaDni) tDnis.add(p.transpFirmaDni);
+    });
+
+    llenarDatalist('listOrigenes', origenes);
+    llenarDatalist('listDestinos', destinos);
+    llenarDatalist('listMatriculas', matriculas);
+    llenarDatalist('listRemolques', remolques);
+    llenarDatalist('listMercancias', mercancias);
+    llenarDatalist('listFirmantesCargadorNombre', cNombres);
+    llenarDatalist('listFirmantesCargadorDni', cDnis);
+    llenarDatalist('listFirmantesTranspNombre', tNombres);
+    llenarDatalist('listFirmantesTranspDni', tDnis);
+    llenarDatalist('listTranspNombre', transpNombres);
+    llenarDatalist('listTranspCif', transpCifs);
+    llenarDatalist('listTranspDir', transpDirs);
+  }
+
+  function llenarDatalist(listId, conjunto) {
+    const list = document.getElementById(listId);
+    if (!list) return;
+    list.innerHTML = "";
+    conjunto.forEach(val => {
+      const opt = document.createElement('option');
+      opt.value = val;
+      list.appendChild(opt);
+    });
+  }
+
+  function autocompletarTransportista(origen) {
+    const valNombre = document.getElementById('transpNombre').value.trim().toLowerCase();
+    const valCif = document.getElementById('transpCif').value.trim().toLowerCase();
+
+    let coincidencia = null;
+    if (origen === 'nombre' && valNombre.length > 1) {
+      coincidencia = portes.find(p => p.transpNombre && p.transpNombre.toLowerCase() === valNombre);
+    } else if (origen === 'cif' && valCif.length > 2) {
+      coincidencia = portes.find(p => p.transpCif && p.transpCif.toLowerCase() === valCif);
+    }
+
+    if (coincidencia) {
+      if (coincidencia.transpNombre) document.getElementById('transpNombre').value = coincidencia.transpNombre;
+      if (coincidencia.transpCif) document.getElementById('transpCif').value = coincidencia.transpCif;
+      if (coincidencia.transpDir) document.getElementById('transpDireccion').value = coincidencia.transpDir;
+      if (coincidencia.transpMat) document.getElementById('transpMatricula').value = coincidencia.transpMat;
+      if (coincidencia.transpRem) document.getElementById('transpRemolque').value = coincidencia.transpRem;
+    }
+  }
+
+  async function guardarCargadorSiEsNuevo(nombre, cif, direccion) {
     if (!nombre || nombre === "---") return;
     const existe = cargadoresGuardados.find(c => c.nombre.toLowerCase() === nombre.toLowerCase() || (cif && c.cif && c.cif.toLowerCase() === cif.toLowerCase()));
     if (!existe) {
-      cargadoresGuardados.push({ nombre, cif, direccion });
+      cargadoresGuardados.push({ nombre: nombre, cif: cif, direccion: direccion });
     } else {
       if (cif && cif !== "---") existe.cif = cif;
       if (direccion && direccion !== "---") existe.direccion = direccion;
     }
+    await guardarMemoria();
   }
 
-  function guardarClienteManual() {
+  async function guardarClienteManual() {
     const nombre = document.getElementById('cliNombre').value.trim();
     const cif = document.getElementById('cliCif').value.trim();
     const direccion = document.getElementById('cliDireccion').value.trim();
@@ -514,19 +817,17 @@
       return;
     }
 
-    guardarCargadorSiEsNuevo(nombre, cif, direccion);
-    guardarMemoria();
-
+    await guardarCargadorSiEsNuevo(nombre, cif, direccion);
     document.getElementById('cliNombre').value = "";
     document.getElementById('cliCif').value = "";
     document.getElementById('cliDireccion').value = "";
-    alert("Cliente guardado correctamente en la base de datos.");
+    alert("Cliente guardado correctamente en la nube.");
   }
 
-  function eliminarCliente(index) {
+  async function eliminarCliente(index) {
     if (confirm("¿Deseas borrar este cliente del directorio?")) {
       cargadoresGuardados.splice(index, 1);
-      guardarMemoria();
+      await guardarMemoria();
     }
   }
 
@@ -558,7 +859,6 @@
       }
 
       divInfo.appendChild(document.createElement('br'));
-      
       const smallDir = document.createElement('small');
       smallDir.style.color = "#64748b";
       smallDir.textContent = c.direccion || 'Sin dirección registrada';
@@ -620,33 +920,19 @@
 
   async function obtenerSiguienteReferencia() {
     const añoActual = new Date().getFullYear();
-    const prefijoBase = `eCMR-${añoActual}-`;
+    const prefijoBase = añoActual + "-";
     let maxNum = 0;
 
     portes.forEach(p => {
-      if (p.ref && p.ref.startsWith(prefijoBase)) {
-        const numPart = parseInt(p.ref.replace(prefijoBase, ''), 10);
+      const refLimpia = limpiarReferencia(p.ref);
+      if (refLimpia && refLimpia.indexOf(prefijoBase) === 0) {
+        const numPart = parseInt(refLimpia.replace(prefijoBase, ''), 10);
         if (!isNaN(numPart) && numPart > maxNum) maxNum = numPart;
       }
     });
 
-    try {
-      const { data: files, error } = await supabaseClient.storage.from('decamrs').list('', { limit: 1000, sortBy: { column: 'name', order: 'asc' } });
-      if (files && !error) {
-        files.forEach(f => {
-          if (f.name && f.name.startsWith(prefijoBase) && f.name.endsWith('.pdf')) {
-            const numStr = f.name.replace(prefijoBase, '').replace('.pdf', '');
-            const numPart = parseInt(numStr, 10);
-            if (!isNaN(numPart) && numPart > maxNum) maxNum = numPart;
-          }
-        });
-      }
-    } catch (e) {
-      console.warn("Uso de contador local:", e);
-    }
-
     const siguienteNum = maxNum + 1;
-    return `${prefijoBase}${String(siguienteNum).padStart(4, '0')}`;
+    return prefijoBase + String(siguienteNum).padStart(4, '0');
   }
 
   function switchAppTab(tab) {
@@ -660,6 +946,10 @@
     document.getElementById('secTerminados').classList.toggle('hidden', tab !== 'terminados');
     document.getElementById('secClientes').classList.toggle('hidden', tab !== 'clientes');
     document.getElementById('secFirmaDestino').classList.add('hidden');
+
+    if (usuarioActualId) {
+      cargarMemoria();
+    }
   }
 
   function switchAuthTab(tab) {
@@ -718,25 +1008,41 @@
 
   async function handleLogout() {
     try { await supabaseClient.auth.signOut(); } catch(e) {}
+    usuarioActualId = null;
+    portes = [];
+    cargadoresGuardados = [];
     document.getElementById('viewApp').classList.add('hidden');
     document.getElementById('viewAuth').classList.remove('hidden');
   }
 
-  function cargarAppUsuario(user) {
+  async function cargarAppUsuario(user) {
     document.getElementById('viewAuth').classList.add('hidden');
     document.getElementById('viewApp').classList.remove('hidden');
+
+    usuarioActualId = user.id;
 
     const meta = (user && user.user_metadata) ? user.user_metadata : {};
     const elNombre = document.getElementById('transpNombre');
     const elCif = document.getElementById('transpCif');
     const elDir = document.getElementById('transpDireccion');
     
+    // Rellenar con los datos propios de su registro
     if (elNombre) elNombre.value = meta.nombre_empresa || '';
     if (elCif) elCif.value = meta.cif || '';
     if (elDir) elDir.value = meta.direccion || '';
 
-    cargarMemoria();
-    nuevoFormulario();
+    // Limpiar campos del formulario de nuevos portes
+    document.getElementById('cargadorNombre').value = '';
+    document.getElementById('cargadorCif').value = '';
+    document.getElementById('cargadorDireccion').value = '';
+    document.getElementById('lugarCarga').value = '';
+    document.getElementById('lugarDescarga').value = '';
+    document.getElementById('mercancia').value = '';
+    document.getElementById('precioPorte').value = '';
+    document.getElementById('observaciones').value = '';
+
+    await cargarMemoria();
+    await nuevoFormulario();
   }
 
   async function nuevoFormulario() {
@@ -800,22 +1106,28 @@
     canvas.onmousedown = empezar;
     canvas.onmousemove = mover;
     canvas.onmouseup = parar;
-
-    canvas.ontouchstart = (e) => { empezar(e); };
-    canvas.ontouchmove = (e) => { mover(e); };
+    canvas.ontouchstart = function(e) { empezar(e); };
+    canvas.ontouchmove = function(e) { mover(e); };
     canvas.ontouchend = parar;
+  }
+
+  function isCanvasBlank(canvas) {
+    const blank = document.createElement('canvas');
+    blank.width = canvas.width;
+    blank.height = canvas.height;
+    return canvas.toDataURL() === blank.toDataURL();
   }
 
   function capturarUbicacionYHora(metaId, ctx, canvas) {
     const ahora = new Date().toLocaleString('es-ES');
-    let textoSello = `Fecha/Hora: ${ahora}`;
+    let textoSello = "Fecha/Hora: " + ahora;
     if (navigator.geolocation) {
       navigator.geolocation.getCurrentPosition(
-        (pos) => { textoSello += ` | GPS: ${pos.coords.latitude.toFixed(5)}, ${pos.coords.longitude.toFixed(5)}`; aplicarSello(metaId, ctx, canvas, textoSello); },
-        () => { textoSello += ` | GPS: No disponible`; aplicarSello(metaId, ctx, canvas, textoSello); }, 
+        function(pos) { textoSello += " | GPS: " + pos.coords.latitude.toFixed(5) + ", " + pos.coords.longitude.toFixed(5); aplicarSello(metaId, ctx, canvas, textoSello); },
+        function() { textoSello += " | GPS: No disponible"; aplicarSello(metaId, ctx, canvas, textoSello); }, 
         { timeout: 10000, enableHighAccuracy: true }
       );
-    } else { textoSello += ` | GPS: No soportado`; aplicarSello(metaId, ctx, canvas, textoSello); }
+    } else { textoSello += " | GPS: No soportado"; aplicarSello(metaId, ctx, canvas, textoSello); }
   }
 
   function aplicarSello(metaId, ctx, canvas, texto) {
@@ -845,12 +1157,12 @@
     btn.disabled = true; btn.innerText = "Procesando y Subiendo a la Nube...";
 
     try {
-      const ref = document.getElementById('numReferencia').value;
-      const nombreArchivo = `${ref}.pdf`;
+      const ref = limpiarReferencia(document.getElementById('numReferencia').value);
+      const nombreArchivo = ref + ".pdf";
       const { data: publicUrlData } = supabaseClient.storage.from('decamrs').getPublicUrl(nombreArchivo);
       urlPdfGlobal = publicUrlData.publicUrl;
 
-      guardarCargadorSiEsNuevo(getVal('cargadorNombre'), getVal('cargadorCif'), getVal('cargadorDireccion'));
+      await guardarCargadorSiEsNuevo(getVal('cargadorNombre'), getVal('cargadorCif'), getVal('cargadorDireccion'));
 
       const pCargadorNombre = getVal('cargadorNombre');
       const pCargadorCif = getVal('cargadorCif');
@@ -867,17 +1179,24 @@
       const pObservaciones = getVal('observaciones');
       const pFecha = getVal('fechaCarga');
 
-      const cargadorDatosSign = `${getVal('cargadorFirmaNombre')} ${getVal('cargadorFirmaApellidos')} - DNI: ${getVal('cargadorFirmaDni')}`;
-      const transpDatosSign = `${getVal('transpFirmaNombre')} ${getVal('transpFirmaApellidos')} - DNI: ${getVal('transpFirmaDni')}`;
+      const cNombreSign = document.getElementById('cargadorFirmaNombre').value.trim();
+      const cApeSign = document.getElementById('cargadorFirmaApellidos').value.trim();
+      const cDniSign = document.getElementById('cargadorFirmaDni').value.trim();
+      const tNombreSign = document.getElementById('transpFirmaNombre').value.trim();
+      const tApeSign = document.getElementById('transpFirmaApellidos').value.trim();
+      const tDniSign = document.getElementById('transpFirmaDni').value.trim();
+
+      const cargadorDatosSign = (cNombreSign || cApeSign || cDniSign) ? (cNombreSign + " " + cApeSign + " - DNI: " + cDniSign) : "---";
+      const transpDatosSign = (tNombreSign || tApeSign || tDniSign) ? (tNombreSign + " " + tApeSign + " - DNI: " + tDniSign) : "---";
 
       const canvasCarg = document.getElementById('canvasCargador');
       const canvasTransp = document.getElementById('canvasTransportista');
       let imgCargadorData = null, imgTranspData = null;
 
       try {
-        if (canvasCarg && canvasEstadoFirma['canvasCargador']) imgCargadorData = canvasCarg.toDataURL();
-        if (canvasTransp && canvasEstadoFirma['canvasTransportista']) imgTranspData = canvasTransp.toDataURL();
-      } catch(e) { console.warn("Error leyendo canvas de firma:", e); }
+        if (canvasCarg && !isCanvasBlank(canvasCarg)) imgCargadorData = canvasCarg.toDataURL();
+        if (canvasTransp && !isCanvasBlank(canvasTransp)) imgTranspData = canvasTransp.toDataURL();
+      } catch(e) { console.warn("Error leyendo canvas:", e); }
 
       document.getElementById('pNumRef').innerText = ref;
       document.getElementById('pFechaCarga').innerText = pFecha;
@@ -892,7 +1211,7 @@
       document.getElementById('pTranspMat').innerText = pTranspMat;
       document.getElementById('pTranspRem').innerText = pTranspRem;
       document.getElementById('pMercancia').innerText = pMercancia;
-      document.getElementById('pPrecioPorte').innerText = (pPrecioPorte !== "---") ? pPrecioPorte : "Documento de Control Administrativo (Sin valor comercial especificado)";
+      document.getElementById('pPrecioPorte').innerText = (pPrecioPorte !== "---") ? pPrecioPorte : "Documento de Control Administrativo";
       document.getElementById('pObservaciones').innerText = pObservaciones;
 
       document.getElementById('pSignCargadorDatos').innerText = cargadorDatosSign;
@@ -900,18 +1219,19 @@
       document.getElementById('pSignDestDatos').innerText = "(Pendiente de firma en destino)";
 
       const imgCargEl = document.getElementById('pImgCargador');
-      if (imgCargadorData) { imgCargEl.src = imgCargadorData; imgCargEl.style.display = "block"; } else { imgCargEl.style.display = "none"; }
+      if (imgCargEl) { imgCargEl.src = imgCargadorData || ''; imgCargEl.style.display = imgCargadorData ? "block" : "none"; }
 
       const imgTranspEl = document.getElementById('pImgTransp');
-      if (imgTranspEl) {
-        if (imgTranspData) { imgTranspEl.src = imgTranspData; imgTranspEl.style.display = "block"; } else { imgTranspEl.style.display = "none"; }
-      }
+      if (imgTranspEl) { imgTranspEl.src = imgTranspData || ''; imgTranspEl.style.display = imgTranspData ? "block" : "none"; }
 
-      document.getElementById('pImgDest').style.display = "none";
+      const imgDestEl = document.getElementById('pImgDest');
+      if (imgDestEl) { imgDestEl.style.display = "none"; imgDestEl.src = ""; }
 
       const qrContainer = document.getElementById('qrcodePdf');
-      qrContainer.innerHTML = "";
-      new QRCode(qrContainer, { text: urlPdfGlobal, width: 80, height: 80 });
+      if (qrContainer) {
+        qrContainer.innerHTML = "";
+        new QRCode(qrContainer, { text: urlPdfGlobal, width: 75, height: 75 });
+      }
 
       await procesarImagenInput('fotoMercancia', 'pFotoMercanciaArea');
       await procesarImagenInput('fotoObservaciones', 'pFotoObservacionesArea');
@@ -923,10 +1243,9 @@
       await new Promise(resolve => setTimeout(resolve, 350));
 
       const elementoPdf = document.getElementById('pdfTemplate');
-      const opciones = { margin: 8, filename: nombreArchivo, image: { type: 'jpeg', quality: 0.98 }, html2canvas: { scale: 2, scrollX: 0, scrollY: 0, useCORS: true }, jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' } };
+      const opciones = { margin: 6, filename: nombreArchivo, image: { type: 'jpeg', quality: 0.98 }, html2canvas: { scale: 2, scrollX: 0, scrollY: 0, useCORS: true }, jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' } };
 
       const pdfBlob = await html2pdf().set(opciones).from(elementoPdf).output('blob');
-
       pdfRenderArea.classList.add('hidden'); pdfRenderArea.style.position = ""; pdfRenderArea.style.left = ""; pdfRenderArea.style.width = "";
 
       const { error: uploadError } = await supabaseClient.storage.from('decamrs').upload(nombreArchivo, pdfBlob, { contentType: 'application/pdf', upsert: true });
@@ -936,15 +1255,28 @@
         btn.disabled = false; btn.innerText = "Emitir e-CMR y Guardar en Nube"; return;
       }
 
-      portes.push({
-        ref, fecha: pFecha, cargador: pCargadorNombre, cargadorCif: pCargadorCif, cargadorDir: pCargadorDir,
+      const nuevoPorteObj = {
+        ref: ref, fecha: pFecha, cargador: pCargadorNombre, cargadorCif: pCargadorCif, cargadorDir: pCargadorDir,
         origen: pLugarCarga, destino: pLugarDescarga, transpNombre: pTranspNombre, transpCif: pTranspCif,
         transpDir: pTranspDir, transpMat: pTranspMat, transpRem: pTranspRem, mercancia: pMercancia,
-        precioPorte: pPrecioPorte, observaciones: pObservaciones, cargadorDatosSign, transpDatosSign,
-        imgCargadorData, imgTranspData, urlPdf: urlPdfGlobal, estado: 'transito'
-      });
+        precioPorte: pPrecioPorte, observaciones: pObservaciones, 
+        cargadorFirmaNombre: cNombreSign, cargadorFirmaApellidos: cApeSign, cargadorFirmaDni: cDniSign,
+        transpFirmaNombre: tNombreSign, transpFirmaApellidos: tApeSign, transpFirmaDni: tDniSign,
+        cargadorDatosSign: cargadorDatosSign, transpDatosSign: transpDatosSign,
+        imgCargadorData: imgCargadorData, imgTranspData: imgTranspData, urlPdf: urlPdfGlobal, estado: 'transito'
+      };
 
-      guardarMemoria();
+      portes.push(nuevoPorteObj);
+
+      if (usuarioActualId) {
+        await supabaseClient.from('portes').upsert({
+          user_id: usuarioActualId,
+          ref: ref,
+          payload: nuevoPorteObj
+        }, { onConflict: 'user_id,ref' });
+      }
+
+      await guardarMemoria();
       btn.disabled = false; btn.innerText = "Emitir e-CMR y Guardar en Nube";
       alert("¡Documento procesado y subido correctamente a la nube!");
       nuevoFormulario(); switchAppTab('transito');
@@ -954,7 +1286,6 @@
     }
   }
 
-  // RENDERIZAR LISTAS DE PORTES (CONCATENACIÓN CLÁSICA PURA)
   function renderizarListas() {
     const transitList = document.getElementById('listTransit');
     const doneList = document.getElementById('listDone');
@@ -963,7 +1294,10 @@
     transitList.innerHTML = ""; doneList.innerHTML = "";
     let inTransit = 0, isDone = 0;
 
+    const terminadosAgrupados = {};
+
     portes.forEach(function(p, index) {
+      p.ref = limpiarReferencia(p.ref);
       const card = document.createElement('div');
       card.className = "card-porte " + (p.estado === 'terminado' ? 'done' : '');
 
@@ -1012,6 +1346,15 @@
         cardActions.appendChild(btnFirmar);
       }
 
+      const btnEliminarPorte = document.createElement('button');
+      btnEliminarPorte.className = "btn-sm";
+      btnEliminarPorte.style.background = "#ef4444";
+      btnEliminarPorte.style.color = "white";
+      btnEliminarPorte.type = "button";
+      btnEliminarPorte.textContent = "Eliminar";
+      btnEliminarPorte.onclick = function() { eliminarPorte(p.ref); };
+      cardActions.appendChild(btnEliminarPorte);
+
       card.innerHTML = 
         '<div class="card-header">' +
           '<span class="card-ref">' + p.ref + '</span>' +
@@ -1021,9 +1364,86 @@
       
       card.appendChild(cardActions);
 
-      if (p.estado === 'transito') { transitList.appendChild(card); inTransit++; }
-      else { doneList.appendChild(card); isDone++; }
+      if (p.estado === 'transito') {
+        transitList.appendChild(card);
+        inTransit++;
+      } else {
+        isDone++;
+        const clienteNom = (p.cargador || 'Sin Cliente Contractual').trim();
+        const fechaVal = p.fecha || new Date().toISOString().split('T')[0];
+        const anioMes = fechaVal.substring(0, 7);
+
+        if (!terminadosAgrupados[clienteNom]) terminadosAgrupados[clienteNom] = {};
+        if (!terminadosAgrupados[clienteNom][anioMes]) terminadosAgrupados[clienteNom][anioMes] = [];
+        terminadosAgrupados[clienteNom][anioMes].push({ porte: p, cardElement: card });
+      }
     });
+
+    if (isDone === 0) {
+      doneList.innerHTML = "<p style='color:#64748b; text-align:center;'>Aún no hay portes finalizados en el archivador.</p>";
+    } else {
+      const nombresMeses = { "01": "Enero", "02": "Febrero", "03": "Marzo", "04": "Abril", "05": "Mayo", "06": "Junio", "07": "Julio", "08": "Agosto", "09": "Septiembre", "10": "Octubre", "11": "Noviembre", "12": "Diciembre" };
+
+      Object.keys(terminadosAgrupados).sort().forEach(cliente => {
+        const clientFolder = document.createElement('div');
+        clientFolder.className = "client-folder";
+
+        const clientHeader = document.createElement('div');
+        clientHeader.className = "client-folder-header";
+        clientHeader.innerHTML = `<span>📁 <b>${cliente}</b></span> <span style="font-size:0.8rem; background:rgba(255,255,255,0.2); padding:3px 8px; border-radius:12px;">Cliente Contractual</span>`;
+        clientFolder.appendChild(clientHeader);
+
+        const mesesObj = terminadosAgrupados[cliente];
+        Object.keys(mesesObj).sort().reverse().forEach(anioMes => {
+          const [anio, mesNum] = anioMes.split('-');
+          const nombreMesLegible = (nombresMeses[mesNum] || mesNum) + " " + anio;
+          const listaPortesMes = mesesObj[anioMes];
+
+          const monthFolder = document.createElement('div');
+          monthFolder.className = "month-subfolder";
+
+          const monthHeader = document.createElement('div');
+          monthHeader.className = "month-subfolder-header";
+          
+          const spanMes = document.createElement('span');
+          spanMes.innerHTML = `📂 <b>Mes: ${nombreMesLegible}</b> (${listaPortesMes.length} albaranes)`;
+          monthHeader.appendChild(spanMes);
+
+          const monthActions = document.createElement('div');
+          monthActions.style.display = "flex";
+          monthActions.style.gap = "6px";
+
+          const btnDescargarZip = document.createElement('button');
+          btnDescargarZip.className = "btn-sm";
+          btnDescargarZip.style.background = "#0284c7";
+          btnDescargarZip.style.color = "white";
+          btnDescargarZip.type = "button";
+          btnDescargarZip.textContent = "📥 Descargar ZIP Mes";
+          btnDescargarZip.onclick = function() { descargarMesZip(cliente, anioMes, listaPortesMes); };
+          monthActions.appendChild(btnDescargarZip);
+
+          const btnBorrarMes = document.createElement('button');
+          btnBorrarMes.className = "btn-sm";
+          btnBorrarMes.style.background = "#ef4444";
+          btnBorrarMes.style.color = "white";
+          btnBorrarMes.type = "button";
+          btnBorrarMes.textContent = "🗑️ Borrar Mes";
+          btnBorrarMes.onclick = function() { eliminarMesCliente(cliente, anioMes); };
+          monthActions.appendChild(btnBorrarMes);
+
+          monthHeader.appendChild(monthActions);
+          monthFolder.appendChild(monthHeader);
+
+          listaPortesMes.forEach(item => {
+            monthFolder.appendChild(item.cardElement);
+          });
+
+          clientFolder.appendChild(monthFolder);
+        });
+
+        doneList.appendChild(clientFolder);
+      });
+    }
 
     const elCountT = document.getElementById('countTransit');
     const elCountD = document.getElementById('countDone');
@@ -1031,7 +1451,6 @@
     if (elCountD) elCountD.innerText = isDone;
 
     if (inTransit === 0) transitList.innerHTML = "<p style='color:#64748b; text-align:center;'>No llevas mercancía en tránsito actualmente.</p>";
-    if (isDone === 0) doneList.innerHTML = "<p style='color:#64748b; text-align:center;'>Aún no hay portes finalizados.</p>";
   }
 
   function abrirFirmaDestino(index) {
@@ -1060,47 +1479,43 @@
     document.getElementById('secTransito').classList.remove('hidden');
   }
 
-  function completarEntregaDestino() {
+  async function completarEntregaDestino() {
     if (porteEnEdicionIndex === null || porteEnEdicionIndex === undefined) {
       alert("Error: No hay ningún porte seleccionado para entregar.");
       return;
     }
 
-    const nom = document.getElementById('destFirmaNombre').value.trim();
-    const ape = document.getElementById('destFirmaApellidos').value.trim();
-    const dni = document.getElementById('destFirmaDni').value.trim();
+    const btnEntrega = document.getElementById('btnCompletarEntrega');
+    if (btnEntrega) { btnEntrega.disabled = true; btnEntrega.innerText = "Generando PDF con Firma..."; }
 
-    const p = portes[porteEnEdicionIndex];
-
-    p.destNombre = nom;
-    p.destApellidos = ape;
-    p.destDni = dni;
-    p.estado = 'terminado';
-
-    let imgDestinoData = null;
     try {
-      const canvasDest = document.getElementById('canvasDestinatario');
-      if (canvasDest && canvasEstadoFirma['canvasDestinatario']) {
-        imgDestinoData = canvasDest.toDataURL();
+      const nom = document.getElementById('destFirmaNombre').value.trim();
+      const ape = document.getElementById('destFirmaApellidos').value.trim();
+      const dni = document.getElementById('destFirmaDni').value.trim();
+
+      const p = portes[porteEnEdicionIndex];
+      p.ref = limpiarReferencia(p.ref);
+
+      p.destNombre = nom;
+      p.destApellidos = ape;
+      p.destDni = dni;
+      p.estado = 'terminado';
+
+      let imgDestinoData = null;
+      try {
+        const canvasDest = document.getElementById('canvasDestinatario');
+        if (canvasDest && !isCanvasBlank(canvasDest)) {
+          imgDestinoData = canvasDest.toDataURL('image/png');
+        }
+      } catch (e) { console.warn("Error leyendo canvas destino:", e); }
+
+      p.imgDestinoData = imgDestinoData;
+
+      const baseUrlLimpia = p.urlPdf ? p.urlPdf.split('?')[0] : "";
+      if (baseUrlLimpia) {
+        p.urlPdf = baseUrlLimpia + "?t=" + new Date().getTime();
       }
-    } catch (e) { console.warn("Error leyendo canvas de destino:", e); }
 
-    p.imgDestinoData = imgDestinoData;
-    porteEnEdicionIndex = null;
-
-    guardarMemoria();
-    alert("¡Entrega confirmada y registrada correctamente!");
-
-    document.getElementById('secFirmaDestino').classList.add('hidden');
-    switchAppTab('terminados');
-
-    setTimeout(() => {
-      actualizarPdfEnNubeSegundoPlano(p);
-    }, 300);
-  }
-
-  async function actualizarPdfEnNubeSegundoPlano(p) {
-    try {
       const setTxt = (id, val) => { const el = document.getElementById(id); if (el) el.innerText = val; };
       setTxt('pNumRef', p.ref);
       setTxt('pFechaCarga', p.fecha || '---');
@@ -1117,44 +1532,78 @@
       setTxt('pMercancia', p.mercancia || '---');
       setTxt('pPrecioPorte', (p.precioPorte && p.precioPorte !== '---') ? p.precioPorte : "Documento de Control Administrativo");
       setTxt('pObservaciones', p.observaciones || '---');
+      
       setTxt('pSignCargadorDatos', p.cargadorDatosSign || '---');
       setTxt('pSignTranspDatos', p.transpDatosSign || '---');
-      setTxt('pSignDestDatos', p.destNombre ? `${p.destNombre} ${p.destApellidos || ''} - DNI: ${p.destDni || '---'}` : "Entregado en destino");
+      
+      const destDatosTexto = p.destNombre ? (p.destNombre + " " + (p.destApellidos || '') + " - DNI: " + (p.destDni || '---')) : "Entregado en destino";
+      setTxt('pSignDestDatos', destDatosTexto);
 
       const imgCargEl = document.getElementById('pImgCargador');
-      if (imgCargEl) imgCargEl.style.display = p.imgCargadorData ? (imgCargEl.src = p.imgCargadorData, "block") : "none";
+      if (imgCargEl) { imgCargEl.src = p.imgCargadorData || ''; imgCargEl.style.display = p.imgCargadorData ? "block" : "none"; }
 
       const imgTranspEl = document.getElementById('pImgTransp');
-      if (imgTranspEl) imgTranspEl.style.display = p.imgTranspData ? (imgTranspEl.src = p.imgTranspData, "block") : "none";
+      if (imgTranspEl) { imgTranspEl.src = p.imgTranspData || ''; imgTranspEl.style.display = p.imgTranspData ? "block" : "none"; }
 
       const imgDestEl = document.getElementById('pImgDest');
-      if (imgDestEl) imgDestEl.style.display = p.imgDestinoData ? (imgDestEl.src = p.imgDestinoData, "block") : "none";
+      if (imgDestEl) { 
+        if (p.imgDestinoData) {
+          await new Promise((resolve) => {
+            imgDestEl.onload = resolve;
+            imgDestEl.onerror = resolve;
+            imgDestEl.src = p.imgDestinoData;
+            imgDestEl.style.display = "block";
+          });
+        } else {
+          imgDestEl.style.display = "none";
+          imgDestEl.src = "";
+        }
+      }
 
-      const nombreArchivo = `${p.ref}.pdf`;
       const qrContainer = document.getElementById('qrcodePdf');
       if (qrContainer) {
         qrContainer.innerHTML = "";
-        new QRCode(qrContainer, { text: p.urlPdf, width: 80, height: 80 });
+        new QRCode(qrContainer, { text: baseUrlLimpia, width: 75, height: 75 });
       }
 
       const pdfRenderArea = document.getElementById('pdfRenderArea');
-      if (pdfRenderArea) {
-        pdfRenderArea.style.position = "absolute"; pdfRenderArea.style.left = "-9999px"; pdfRenderArea.style.top = "0px"; pdfRenderArea.style.width = "794px";
-        pdfRenderArea.classList.remove('hidden');
+      pdfRenderArea.style.position = "absolute"; pdfRenderArea.style.left = "-9999px"; pdfRenderArea.style.top = "0px"; pdfRenderArea.style.width = "794px";
+      pdfRenderArea.classList.remove('hidden');
 
-        await new Promise(resolve => setTimeout(resolve, 400));
+      await new Promise(resolve => setTimeout(resolve, 800));
 
-        const elementoPdf = document.getElementById('pdfTemplate');
-        const opciones = { margin: 8, filename: nombreArchivo, image: { type: 'jpeg', quality: 0.98 }, html2canvas: { scale: 2, scrollX: 0, scrollY: 0, useCORS: true }, jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' } };
+      const elementoPdf = document.getElementById('pdfTemplate');
+      const opciones = { margin: 6, filename: p.ref + ".pdf", image: { type: 'jpeg', quality: 0.98 }, html2canvas: { scale: 2, scrollX: 0, scrollY: 0, useCORS: true }, jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' } };
 
-        const pdfBlob = await html2pdf().set(opciones).from(elementoPdf).output('blob');
+      const pdfBlob = await html2pdf().set(opciones).from(elementoPdf).output('blob');
+      pdfRenderArea.classList.add('hidden'); pdfRenderArea.style.position = ""; pdfRenderArea.style.left = ""; pdfRenderArea.style.width = "";
 
-        pdfRenderArea.classList.add('hidden'); pdfRenderArea.style.position = ""; pdfRenderArea.style.left = ""; pdfRenderArea.style.width = "";
+      const { error: uploadError } = await supabaseClient.storage.from('decamrs').upload(p.ref + ".pdf", pdfBlob, { contentType: 'application/pdf', upsert: true });
 
-        await supabaseClient.storage.from('decamrs').upload(nombreArchivo, pdfBlob, { contentType: 'application/pdf', upsert: true });
+      if (uploadError) {
+        alert("Error al actualizar PDF en Supabase: " + uploadError.message);
       }
-    } catch (e) {
-      console.warn("Error generando PDF en segundo plano:", e);
+
+      if (usuarioActualId) {
+        await supabaseClient.from('portes').upsert({
+          user_id: usuarioActualId,
+          ref: p.ref,
+          payload: p
+        }, { onConflict: 'user_id,ref' });
+      }
+
+      porteEnEdicionIndex = null;
+      await guardarMemoria();
+
+      if (btnEntrega) { btnEntrega.disabled = false; btnEntrega.innerText = "Confirmar Entrega y Finalizar"; }
+      alert("¡Entrega confirmada y PDF actualizado con éxito en la nube!");
+
+      document.getElementById('secFirmaDestino').classList.add('hidden');
+      switchAppTab('terminados');
+
+    } catch (err) {
+      alert("Error procesando la entrega: " + err.message);
+      if (btnEntrega) { btnEntrega.disabled = false; btnEntrega.innerText = "Confirmar Entrega y Finalizar"; }
     }
   }
 
@@ -1163,7 +1612,8 @@
     const qrBox = document.getElementById('qrInspectBox');
     if (qrBox) {
       qrBox.innerHTML = "";
-      new QRCode(qrBox, { text: url, width: 220, height: 220 });
+      const urlBasePura = url.split('?')[0];
+      new QRCode(qrBox, { text: urlBasePura, width: 200, height: 200 });
     }
     document.getElementById('qrInspectRef').innerText = ref;
     document.getElementById('modalQR').classList.remove('hidden');
