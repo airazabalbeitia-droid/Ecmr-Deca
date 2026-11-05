@@ -351,6 +351,20 @@
       <div class="section-title">Directorio de Clientes Guardados</div>
       <div id="listClientesDir"></div>
     </div>
+
+    <!-- BANNER PUBLICITARIO ADSTERRA 300x250 (En sección Clientes) -->
+    <div style="text-align: center; margin: 20px 0; width: 100%; overflow: hidden;">
+      <script type="text/javascript">
+        atOptions = {
+          'key' : '3c37febae104e6ee400bc5bfe123541e',
+          'format' : 'iframe',
+          'height' : 250,
+          'width' : 300,
+          'params' : {}
+        };
+      </script>
+      <script type="text/javascript" src="//www.highperformanceformat.com/3c37febae104e6ee400bc5bfe123541e/invoke.js"></script>
+    </div>
   </div>
 
   <!-- SECCIÓN FIRMA DESTINO (DESCARGA) -->
@@ -375,7 +389,7 @@
     </div>
   </div>
 
-  <!-- BANNER PUBLICITARIO ADSTERRA -->
+  <!-- BANNER PUBLICITARIO ADSTERRA 320x50 (Pie principal) -->
   <div style="text-align: center; margin: 20px 0 10px 0; width: 100%; overflow: hidden;">
     <script type="text/javascript">
       atOptions = {
@@ -1040,12 +1054,10 @@
     const elCif = document.getElementById('transpCif');
     const elDir = document.getElementById('transpDireccion');
     
-    // Rellenar con los datos propios de su registro
     if (elNombre) elNombre.value = meta.nombre_empresa || '';
     if (elCif) elCif.value = meta.cif || '';
     if (elDir) elDir.value = meta.direccion || '';
 
-    // Limpiar campos del formulario de nuevos portes
     document.getElementById('cargadorNombre').value = '';
     document.getElementById('cargadorCif').value = '';
     document.getElementById('cargadorDireccion').value = '';
